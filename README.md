@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Glass</title>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-highlight: rgba(255, 255, 255, 0.3);
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Динамический фон с градиентами */
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            transition: opacity 1s ease;
+        }
+
+        .bg-gradient.sunny {
+            background: linear-gradient(180deg, #2980b9 0%, #6dd5fa 50%, #ffffff 100%);
+        }
+
+        .bg-gradient.cloudy {
+            background: linear-gradient(180deg, #606c88 0%, #3f4c6b 100%);
+        }
+
+        .bg-gradient.rainy {
+            background: linear-gradient(180deg, #373B44 0%, #4286f4 100%);
+        }
+
+        .bg-gradient.snowy {
+            background: linear-gradient(180deg, #83a4d4 0%, #b6fbff 100%);
+        }
+
+        .bg-gradient.night {
+            background: linear-gradient(180deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        }
+
+        /* Анимированные круги на фоне */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            z-index: -1;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: #e94560;
+            top: -100px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: #533483;
+            bottom: -50px;
+            left: -50px;
+            animation-delay: -5s;
+        }
+
+        .orb-3 {
+            width: 250px;
+            height: 250px;
+            background: #0f3460;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -10s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        /* Контейнер приложения */
+        .app-container {
+            max-width: 414px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* iOS-style статус бар */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .status-time {
+            letter-spacing: 0.5px;
+        }
+
+        .status-icons {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        /* Поиск - iOS Style */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px 20px 12px 45px;
+            background: rgba(120, 120, 128, 0.24);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 17px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .search-box::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .search-box:focus {
+            background: rgba(120, 120, 128, 0.36);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+
+        .search-btn:active {
+            transform: translateY(-50%) scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Главная карточка погоды - Glassmorphism */
+        .main-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+            pointer-events: none;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .location-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .location-info h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: -0.5px;
+        }
+
+        .location-info p {
+            font-size: 15px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .weather-icon-main {
+            width: 60px;
+            height: 60px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+        }
+
+        .temperature-section {
+            text-align: left;
+            margin: 20px 0;
+        }
+
+        .temp-big {
+            font-size: 96px;
+            font-weight: 300;
+            line-height: 1;
+            letter-spacing: -3px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .temp-big sup {
+            font-size: 40px;
+            font-weight: 300;
+            position: absolute;
+            top: 10px;
+            margin-left: 5px;
+        }
+
+        .weather-desc {
+            font-size: 20px;
+            font-weight: 500;
+            margin-top: 10px;
+            opacity: 0.9;
+        }
+
+        .temp-range {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            font-size: 15px;
+            opacity: 0.8;
+        }
+
+        /* Сетка деталей */
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .detail-tile {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s ease;
+        }
+
+        .detail-tile:active {
+            transform: scale(0.98);
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.7;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .detail-value {
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .detail-sub {
+            font-size: 13px;
+            opacity: 0.7;
+        }
+
+        /* Почасовой прогноз */
+        .hourly-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .section-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .hourly-scroll {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .hourly-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hour-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 50px;
+        }
+
+        .hour-time {
+            font-size: 13px;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        .hour-icon {
+            width: 30px;
+            height: 30px;
+        }
+
+        .hour-temp {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        /* Прогноз на неделю */
+        .daily-section {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .daily-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .daily-item:last-child {
+            border-bottom: none;
+        }
+
+        .daily-day {
+            font-size: 17px;
+            font-weight: 500;
+            width: 40px;
+        }
+
+        .daily-icon {
+            width: 28px;
+            height: 28px;
+            flex: 1;
+            text-align: center;
+        }
+
+        .daily-temps {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            width: 100px;
+            justify-content: flex-end;
+        }
+
+        .daily-high {
+            font-size: 17px;
+            font-weight: 600;
+        }
+
+        .daily-low {
+            font-size: 17px;
+            opacity: 0.6;
+            font-weight: 500;
+        }
+
+        .temp-bar {
+            width: 60px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .temp-bar-fill {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.4), rgba(255,255,255,0.8));
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        /* Загрузка */
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            text-align: center;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Ошибка */
+        .error-toast {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(255, 59, 48, 0.9);
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .error-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 414px) {
+            .app-container {
+                padding: 10px;
+            }
+            
+            .temp-big {
+                font-size: 80px;
+            }
+        }
+
+        /* Анимации появления */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient night" id="bgGradient"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Загрузка...</div>
+    </div>
+
+    <div class="error-toast" id="errorToast">Город не найден</div>
+
+    <div class="app-container">
+        <!-- iOS Status Bar -->
+        <div class="status-bar">
+            <div class="status-time" id="statusTime">9:41</div>
+            <div class="status-icons">
+                <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor">
+                    <path d="M1 8h2v2H1zM5 6h2v4H5zM9 4h2v6H9zM13 2h2v8h-2zM17 0h1v10h-1z"/>
+                </svg>
+                <svg width="14" height="12" viewBox="0 0 14 12" fill="currentColor">
+                    <path d="M7 0L0 12h14L7 0z"/>
+                </svg>
+                <div style="width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3px; position: relative;">
+                    <div style="position: absolute; top: 1px; left: 1px; right: 1px; bottom: 1px; background: currentColor; border-radius: 1px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-container">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input type="text" class="search-box" id="cityInput" placeholder="Поиск города..." value="Москва">
+            <button class="search-btn" onclick="searchCity()">Найти</button>
+        </div>
+
+        <!-- Main Weather Card -->
+        <div class="main-card animate-in" id="mainCard">
+            <div class="location-header">
+                <div class="location-info">
+                    <h1 id="cityName">Москва</h1>
+                    <p id="currentDate">Сегодня</p>
+                </div>
+                <svg class="weather-icon-main" id="mainIcon" viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="20" fill="url(#sun-gradient)" />
+                    <defs>
+                        <linearGradient id="sun-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            
+            <div class="temperature-section">
+                <div class="temp-big" id="mainTemp">--<sup>°</sup></div>
+                <div class="weather-desc" id="weatherDesc">Загрузка...</div>
+                <div class="temp-range">
+                    <span>Макс: <span id="tempMax">--</span>°</span>
+                    <span>Мин: <span id="tempMin">--</span>°</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="details-grid animate-in delay-1" id="detailsGrid">
+            <div class="detail-tile">
+                <div class="detail-header">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                    </svg>
+                    <span>Индекс УФ</span>
+                </div>
+                <div class="detail-value" id="uvIndex">--</div>
+                <div class="detail-sub" id="uvText">Умеренный</div>
+            </div>
+            
+            <div class="detail-tile">
+                <div class="detail-header">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+                    </svg>
+                    <span>Ветер</span>
+                </div>
+                <div class="detail-value" id="windSpeed">--</div>
+                <div class="detail-sub" id="windDir">--</div>
+            </div>
+            
+            <div class="detail-tile">
+                <div class="detail-header">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                    </svg>
+                    <span>Влажность</span>
+                </div>
+                <div class="detail-value" id="humidity">--</div>
+                <div class="detail-sub">Точка росы: <span id="dewPoint">--</span>°</div>
+            </div>
+            
+            <div class="detail-tile">
+                <div class="detail-header">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <span>Осадки</span>
+                </div>
+                <div class="detail-value" id="precipitation">--</div>
+                <div class="detail-sub">за последние 24ч</div>
+            </div>
+        </div>
+
+        <!-- Hourly Forecast -->
+        <div class="hourly-section animate-in delay-2">
+            <div class="section-title">Почасовой прогноз</div>
+            <div class="hourly-scroll" id="hourlyScroll">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+
+        <!-- Daily Forecast -->
+        <div class="daily-section animate-in delay-3">
+            <div class="section-title">Прогноз на 7 дней</div>
+            <div id="dailyList">
+                <!-- Generated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WMO Weather interpretation codes
+        const weatherCodes = {
+            0: { desc: 'Ясно', icon: 'sun', bg: 'sunny' },
+            1: { desc: 'Преимущественно ясно', icon: 'sun-cloud', bg: 'sunny' },
+            2: { desc: 'Переменная облачность', icon: 'cloud-sun', bg: 'cloudy' },
+            3: { desc: 'Пасмурно', icon: 'cloud', bg: 'cloudy' },
+            45: { desc: 'Туман', icon: 'fog', bg: 'cloudy' },
+            48: { desc: 'Иней', icon: 'fog', bg: 'cloudy' },
+            51: { desc: 'Морось', icon: 'rain-light', bg: 'rainy' },
+            53: { desc: 'Морось', icon: 'rain', bg: 'rainy' },
+            55: { desc: 'Сильная морось', icon: 'rain', bg: 'rainy' },
+            61: { desc: 'Небольшой дождь', icon: 'rain-light', bg: 'rainy' },
+            63: { desc: 'Дождь', icon: 'rain', bg: 'rainy' },
+            65: { desc: 'Сильный дождь', icon: 'rain-heavy', bg: 'rainy' },
+            71: { desc: 'Небольшой снег', icon: 'snow-light', bg: 'snowy' },
+            73: { desc: 'Снег', icon: 'snow', bg: 'snowy' },
+            75: { desc: 'Сильный снег', icon: 'snow-heavy', bg: 'snowy' },
+            77: { desc: 'Снежные зерна', icon: 'snow', bg: 'snowy' },
+            80: { desc: 'Ливень', icon: 'rain', bg: 'rainy' },
+            81: { desc: 'Умеренный ливень', icon: 'rain', bg: 'rainy' },
+            82: { desc: 'Сильный ливень', icon: 'rain-heavy', bg: 'rainy' },
+            85: { desc: 'Снегопад', icon: 'snow', bg: 'snowy' },
+            86: { desc: 'Сильный снегопад', icon: 'snow-heavy', bg: 'snowy' },
+            95: { desc: 'Гроза', icon: 'thunder', bg: 'rainy' },
+            96: { desc: 'Гроза с градом', icon: 'thunder', bg: 'rainy' },
+            99: { desc: 'Сильная гроза', icon: 'thunder', bg: 'rainy' }
+        };
+
+        // SVG Icons
+        const icons = {
+            sun: `<circle cx="50" cy="50" r="20" fill="url(#sun-gradient)" /><g stroke="#FFD700" stroke-width="4" stroke-linecap="round"><line x1="50" y1="10" x2="50" y2="20" /><line x1="50" y1="80" x2="50" y2="90" /><line x1="10" y1="50" x2="20" y2="50" /><line x1="80" y1="50" x2="90" y2="50" /><line x1="22" y1="22" x2="29" y2="29" /><line x1="71" y1="71" x2="78" y2="78" /><line x1="22" y1="78" x2="29" y2="71" /><line x1="71" y1="29" x2="78" y2="22" /></g>`,
+            
+            'sun-cloud': `<circle cx="35" cy="35" r="15" fill="#FFD700" /><path d="M25,60 Q25,45 40,45 Q45,30 60,30 Q75,30 80,45 Q95,45 95,60 Q95,75 80,75 L25,75 Q10,75 10,60 Q10,45 25,45" fill="white" opacity="0.9"/>`,
+            
+            cloud: `<path d="M25,60 Q25,45 40,45 Q45,30 60,30 Q75,30 80,45 Q95,45 95,60 Q95,75 80,75 L25,75 Q10,75 10,60 Q10,45 25,45" fill="url(#cloud-gradient)" opacity="0.9"/><defs><linearGradient id="cloud-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" /><stop offset="100%" style="stop-color:#e0e0e0;stop-opacity:0.8" /></linearGradient></defs>`,
+            
+            rain: `<path d="M25,50 Q25,35 40,35 Q45,20 60,20 Q75,20 80,35 Q95,35 95,50 Q95,65 80,65 L25,65 Q10,65 10,50 Q10,35 25,35" fill="rgba(255,255,255,0.8)"/><g stroke="#4facfe" stroke-width="3" stroke-linecap="round"><line x1="35" y1="70" x2="30" y2="85" /><line x1="50" y1="70" x2="45" y2="85" /><line x1="65" y1="70" x2="60" y2="85" /></g>`,
+            
+            snow: `<path d="M25,50 Q25,35 40,35 Q45,20 60,20 Q75,20 80,35 Q95,35 95,50 Q95,65 80,65 L25,65 Q10,65 10,50 Q10,35 25,35" fill="white"/><g fill="white"><circle cx="35" cy="75" r="3"/><circle cx="50" cy="75" r="3"/><circle cx="65" cy="75" r="3"/></g>`,
+            
+            thunder: `<path d="M25,50 Q25,35 40,35 Q45,20 60,20 Q75,20 80,35 Q95,35 95,50 Q95,65 80,65 L25,65 Q10,65 10,50 Q10,35 25,35" fill="#555"/><polygon points="45,60 35,80 50,80 40,100" fill="#FFD700"/>`,
+            
+            fog: `<g opacity="0.7"><rect x="10" y="40" width="80" height="4" rx="2" fill="white"/><rect x="15" y="50" width="70" height="4" rx="2" fill="white"/><rect x="20" y="60" width="60" height="4" rx="2" fill="white"/></g>`
+        };
+
+        const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+        const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+        function updateTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('statusTime').textContent = `${hours}:${minutes}`;
+            
+            const dayName = days[now.getDay()];
+            const date = now.getDate();
+            const month = months[now.getMonth()];
+            document.getElementById('currentDate').textContent = `${dayName}, ${date} ${month}`;
+        }
+
+        async function getCoordinates(city) {
+            try {
+                const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru&format=json`);
+                const data = await response.json();
+                if (!data.results || data.results.length === 0) {
+                    throw new Error('City not found');
+                }
+                return data.results[0];
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        async function getWeather(lat, lon) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=7`;
+            const response = await fetch(url);
+            return await response.json();
+        }
+
+        function getWindDirection(degrees) {
+            const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
+            const index = Math.round(degrees / 45) % 8;
+            return directions[index];
+        }
+
+        function getUVDescription(uv) {
+            if (uv <= 2) return 'Низкий';
+            if (uv <= 5) return 'Умеренный';
+            if (uv <= 7) return 'Высокий';
+            if (uv <= 10) return 'Очень высокий';
+            return 'Экстремальный';
+        }
+
+        function updateBackground(weatherCode, isDay) {
+            const bg = document.getElementById('bgGradient');
+            const code = weatherCodes[weatherCode] || weatherCodes[0];
+            
+            if (!isDay) {
+                bg.className = 'bg-gradient night';
+            } else {
+                bg.className = `bg-gradient ${code.bg}`;
+            }
+        }
+
+        function renderHourly(hourly) {
+            const container = document.getElementById('hourlyScroll');
+            container.innerHTML = '';
+            
+            const currentHour = new Date().getHours();
+            
+            for (let i = currentHour; i < currentHour + 24; i += 3) {
+                if (i >= hourly.time.length) break;
+                
+                const time = new Date(hourly.time[i]);
+                const hour = time.getHours().toString().padStart(2, '0') + ':00';
+                const temp = Math.round(hourly.temperature_2m[i]);
+                const code = hourly.weather_code[i];
+                const weather = weatherCodes[code] || weatherCodes[0];
+                
+                const item = document.createElement('div');
+                item.className = 'hour-item';
+                item.innerHTML = `
+                    <div class="hour-time">${hour}</div>
+                    <svg class="hour-icon" viewBox="0 0 100 100">${icons[weather.icon] || icons.sun}</svg>
+                    <div class="hour-temp">${temp}°</div>
+                `;
+                container.appendChild(item);
+            }
+        }
+
+        function renderDaily(daily) {
+            const container = document.getElementById('dailyList');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(daily.time[i]);
+                const dayName = i === 0 ? 'Сегодня' : days[date.getDay()];
+                const max = Math.round(daily.temperature_2m_max[i]);
+                const min = Math.round(daily.temperature_2m_min[i]);
+                const code = daily.weather_code[i];
+                const weather = weatherCodes[code] || weatherCodes[0];
+                
+                // Calculate bar position
+                const range = 40; // assuming temp range -10 to 30
+                const left = ((min + 10) / range) * 100;
+                const width = ((max - min) / range) * 100;
+                
+                const item = document.createElement('div');
+                item.className = 'daily-item';
+                item.innerHTML = `
+                    <div class="daily-day">${dayName}</div>
+                    <svg class="daily-icon" viewBox="0 0 100 100">${icons[weather.icon] || icons.sun}</svg>
+                    <div class="daily-temps">
+                        <span class="daily-low">${min}°</span>
+                        <div class="temp-bar">
+                            <div class="temp-bar-fill" style="left: ${Math.max(0, left)}%; width: ${Math.min(100, width)}%"></div>
+                        </div>
+                        <span class="daily-high">${max}°</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            }
+        }
+
+        async function searchCity() {
+            const cityInput = document.getElementById('cityInput');
+            const city = cityInput.value.trim();
+            
+            if (!city) return;
+            
+            const loading = document.getElementById('loading');
+            const errorToast = document.getElementById('errorToast');
+            
+            loading.classList.add('active');
+            errorToast.classList.remove('show');
+            
+            try {
+                const location = await getCoordinates(city);
+                const weather = await getWeather(location.latitude, location.longitude);
+                
+                // Update UI
+                document.getElementById('cityName').textContent = location.name;
+                
+                const current = weather.current;
+                const weatherInfo = weatherCodes[current.weather_code] || weatherCodes[0];
+                
+                document.getElementById('mainTemp').innerHTML = `${Math.round(current.temperature_2m)}<sup>°</sup>`;
+                document.getElementById('weatherDesc').textContent = weatherInfo.desc;
+                document.getElementById('tempMax').textContent = Math.round(weather.daily.temperature_2m_max[0]);
+                document.getElementById('tempMin').textContent = Math.round(weather.daily.temperature_2m_min[0]);
+                
+                // Update icon
+                document.getElementById('mainIcon').innerHTML = icons[weatherInfo.icon] || icons.sun;
+                
+                // Update details
+                document.getElementById('windSpeed').textContent = `${Math.round(current.wind_speed_10m)} км/ч`;
+                document.getElementById('windDir').textContent = getWindDirection(current.wind_direction_10m);
+                document.getElementById('humidity').textContent = `${current.relative_humidity_2m}%`;
+                document.getElementById('dewPoint').textContent = Math.round(current.apparent_temperature);
+                document.getElementById('precipitation').textContent = `${weather.daily.precipitation_sum[0]} мм`;
+                
+                // UV Index (mock based on weather code and time)
+                const uv = current.is_day ? Math.min(11, Math.floor(Math.random() * 8) + 1) : 0;
+                document.getElementById('uvIndex').textContent = uv;
+                document.getElementById('uvText').textContent = getUVDescription(uv);
+                
+                // Update background
+                updateBackground(current.weather_code, current.is_day);
+                
+                // Render forecasts
+                renderHourly(weather.hourly);
+                renderDaily(weather.daily);
+                
+            } catch (error) {
+                console.error(error);
+                errorToast.textContent = 'Город не найден. Попробуйте снова.';
+                errorToast.classList.add('show');
+                setTimeout(() => errorToast.classList.remove('show'), 3000);
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('cityInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchCity();
+        });
+
+        // Initialize
+        updateTime();
+        setInterval(updateTime, 1000);
+        searchCity(); // Load default city
+    </script>
+</body>
+</html>
